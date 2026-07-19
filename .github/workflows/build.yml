@@ -1,0 +1,45 @@
+name: Build Forge mod
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch: {}   # позволяет запускать сборку вручную кнопкой "Run workflow" во вкладке Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Мод таргетится на Java 8 (это то, что Mojang поставляет игрокам 1.12.2),
+      # и весь текущий community-тулчейн для 1.12.2 (ForgeGradle 5 + FancyGradle)
+      # проверенно работает именно под JDK 8 как runtime самого Gradle.
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      # ForgeGradle 5 требует Gradle заметно новее старого 4.9 (community-фикс
+      # для 1.12.2 использует 7.5) — ставим его напрямую, wrapper-jar в
+      # репозитории не нужен.
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '7.5'
+          cache-read-only: false
+
+      # Важно: под ForgeGradle 5 задачи "setupCiWorkspace"/"setupDecompWorkspace"
+      # не существуют вообще — это были концепции старого ForgeGradle 2.x.
+      # Обычный "build" сам разруливает получение/патч Minecraft через FG5.
+      - name: Build mod
+        run: gradle build --stacktrace --no-daemon
+
+      - name: Upload built jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: clientmirror-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
