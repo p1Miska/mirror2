@@ -1,0 +1,94 @@
+// === ForgeGradle 5 + FancyGradle ===
+// ForgeGradle 2.3 (классический для 1.12.2) больше не работает "из коробки":
+// начиная примерно с билда 2851-2860 Forge мигрировал 1.12.2 на новую систему
+// (ForgeGradle 5+), а официальная поддержка версии уже свёрнута, поэтому часть
+// мелочей осталась недочинена. FancyGradle — community-плагин, который эти дыры
+// патчит. Это ТЕКУЩИЙ рабочий способ собирать 1.12.2-моды (см. README, там
+// ссылки на реальные живые репозитории, использующие ровно эту схему).
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            // Реальный, подтверждённо рабочий адрес пакетов FancyGradle —
+            // maven.gofancy.wtf/releases оказался мёртвым/неверным, отсюда
+            // и падение прошлого прогона ("Could not find ...fancygradle...").
+            name = 'FancyGradle'
+            url = 'https://gitlab.com/api/v4/projects/26758973/packages/maven'
+        }
+        maven { url = 'https://maven.minecraftforge.net/' }
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+'
+        classpath group: 'wtf.gofancy.fancygradle', name: 'wtf.gofancy.fancygradle.gradle.plugin', version: '1.1.2-0'
+    }
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'wtf.gofancy.fancygradle'
+apply plugin: 'eclipse'
+apply plugin: 'java'
+
+version = "1.0.0"
+group = "com.mirror.clientmirror"
+archivesBaseName = "clientmirror"
+
+// Mojang поставляет игрокам 1.12.2 именно Java 8 — мод должен таргетиться на неё,
+// даже если сам Gradle-процесс собирается запускать на более новой JVM.
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+
+minecraft {
+    mappings channel: 'snapshot', version: '20171003-1.12'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                clientmirror {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+// В Gradle 7+ конфигурацию 'implementation' напрямую резолвить нельзя
+// (canBeResolved=false — так и задумано, это часть новой модели конфигураций).
+// Заводим отдельную 'shade' конфигурацию специально для шейдинга в jar,
+// и подключаем её к implementation, чтобы зависимость участвовала в компиляции
+// как обычно.
+configurations {
+    shade
+    implementation.extendsFrom shade
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
+    // Чистый Java WebSocket клиент без лишних зависимостей — совместим с Java 8.
+    shade 'org.java-websocket:Java-WebSocket:1.5.3'
+    // Gson уже поставляется с Minecraft/Forge, отдельно не подключаем.
+}
+
+// Шейдим Java-WebSocket внутрь jar мода, чтобы не требовать отдельной установки библиотеки.
+jar {
+    from {
+        configurations.shade.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", "1.12.2"
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': "1.12.2"
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}

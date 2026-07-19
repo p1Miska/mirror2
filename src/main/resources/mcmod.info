@@ -1,0 +1,15 @@
+[
+  {
+    "modid": "clientmirror",
+    "name": "Client Mirror",
+    "description": "Read-only/интерактивное зеркало реального сервера через WebSocket-мост (Mineflayer).",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "authorList": ["you"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
