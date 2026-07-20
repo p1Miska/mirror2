@@ -84,11 +84,11 @@ processResources {
     inputs.property "version", project.version
     inputs.property "mcversion", "1.12.2"
 
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
+    // filesMatching применяет expand к уже включённым файлам (обычный неявный
+    // copy spec из sourceSets.main.resources.srcDirs), а не добавляет ЕЩЁ один
+    // copy spec поверх — именно два отдельных from(...) с пересекающимся
+    // источником и давали "Entry mcmod.info is a duplicate".
+    filesMatching('mcmod.info') {
         expand 'version': project.version, 'mcversion': "1.12.2"
-    }
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
     }
 }
